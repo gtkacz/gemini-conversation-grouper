@@ -1,5 +1,4 @@
-// State structure: { folders: { "Name": ["id1"] }, collapsed: { "Name": true/false } }
-let state = { folders: {}, collapsed: {} };
+let state = { folders: {} };
 const STORAGE_KEY = "gemini_conversation_groups";
 
 // Material Design SVG Icons
@@ -10,17 +9,39 @@ const icons = {
 	export: `<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`,
 	import: `<svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>`,
 	chevron: `<svg viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg>`,
+	check: `<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`,
+	cancel: `<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>`,
 };
 
 // 1. Initialization
 async function init() {
 	const data = await chrome.storage.local.get(STORAGE_KEY);
-	if (data[STORAGE_KEY]) state = data[STORAGE_KEY];
+	if (data[STORAGE_KEY]) {
+		state = data[STORAGE_KEY];
+
+		// Auto-migrate legacy data to the new unified structure
+		if (state.collapsed) {
+			const newFolders = {};
+			for (const [name, items] of Object.entries(state.folders)) {
+				if (Array.isArray(items)) {
+					newFolders[name] = {
+						items: items,
+						collapsed: !!state.collapsed[name],
+					};
+				} else {
+					newFolders[name] = items;
+				}
+			}
+			state.folders = newFolders;
+			delete state.collapsed; // Purge the redundant key
+			await saveState();
+		}
+	}
 
 	injectControls();
 	renderFolders();
 	organizeExistingConversations();
-	setupObserver(); // To handle dynamically loaded conversations
+	setupObserver();
 }
 
 // 2. Core DOM Manipulation & ID Extraction
@@ -40,26 +61,64 @@ function injectControls() {
 	controlsDiv.id = "cg-controls";
 
 	controlsDiv.innerHTML = `
-    <button id="cg-add-folder" class="cg-btn">${icons.add} New</button>
-    <button id="cg-export" class="cg-btn">${icons.export} Export</button>
-    <button id="cg-import-btn" class="cg-btn">${icons.import} Import</button>
+    <button id="cg-add-folder" class="cg-btn">${icons.add} New Folder</button>
+    <button id="cg-export" class="cg-icon-only-btn" title="Export JSON">${icons.export}</button>
+    <button id="cg-import-btn" class="cg-icon-only-btn" title="Import JSON">${icons.import}</button>
     <input type="file" id="cg-import-file" accept=".json" style="display:none;">
   `;
 
 	parent.prepend(controlsDiv);
 
-	document
-		.getElementById("cg-add-folder")
-		.addEventListener("click", async (e) => {
-			e.preventDefault();
-			const name = prompt("Folder Name:");
-			if (name && !state.folders[name]) {
-				state.folders[name] = [];
-				await saveState(); // Wait for it to save
-				renderFolders();
-			}
-		});
+	// 1. Inline Input Logic for New Folder
+	document.getElementById("cg-add-folder").addEventListener("click", (e) => {
+		e.preventDefault();
 
+		// Prevent multiple inputs from spawning
+		if (document.getElementById("cg-new-folder-input")) return;
+
+		const inputWrapper = document.createElement("div");
+		inputWrapper.className = "cg-inline-input-wrapper";
+		inputWrapper.id = "cg-new-folder-input";
+
+		inputWrapper.innerHTML = `
+      <span class="cg-folder-icon">${icons.folder}</span>
+      <input type="text" placeholder="Folder name..." />
+      <button class="cg-icon-btn confirm" title="Create">${icons.check}</button>
+      <button class="cg-icon-btn cancel" title="Cancel">${icons.cancel}</button>
+    `;
+
+		// Insert the input field right below the controls bar
+		parent.insertBefore(inputWrapper, controlsDiv.nextSibling);
+
+		const input = inputWrapper.querySelector("input");
+		input.focus(); // Auto-focus the input
+
+		const submitFolder = async () => {
+			const name = input.value.trim();
+			if (name && !state.folders[name]) {
+				// Use the new nested object structure!
+				state.folders[name] = { items: [], collapsed: false };
+				await saveState();
+				renderFolders();
+			} else if (state.folders[name]) {
+				alert("A folder with that name already exists!");
+			}
+			inputWrapper.remove();
+		};
+
+		// Listeners for the check, cancel, and the Enter key
+		inputWrapper
+			.querySelector(".confirm")
+			.addEventListener("click", submitFolder);
+		input.addEventListener("keydown", (e) => {
+			if (e.key === "Enter") submitFolder();
+		});
+		inputWrapper
+			.querySelector(".cancel")
+			.addEventListener("click", () => inputWrapper.remove());
+	});
+
+	// 2. Import/Export Listeners
 	document.getElementById("cg-export").addEventListener("click", exportJSON);
 	document.getElementById("cg-import-btn").addEventListener("click", () => {
 		document.getElementById("cg-import-file").click();
@@ -81,7 +140,9 @@ function renderFolders() {
 	Object.keys(state.folders).forEach((folderName) => {
 		const folderEl = document.createElement("div");
 		folderEl.className = "cg-folder";
-		if (state.collapsed[folderName]) folderEl.classList.add("collapsed");
+		if (state.folders[folderName].collapsed) {
+			folderEl.classList.add("collapsed");
+		}
 		folderEl.dataset.folder = folderName;
 
 		folderEl.innerHTML = `
@@ -105,7 +166,8 @@ function renderFolders() {
 			.querySelector(".cg-chevron")
 			.addEventListener("click", async () => {
 				folderEl.classList.toggle("collapsed");
-				state.collapsed[folderName] = folderEl.classList.contains("collapsed");
+				state.folders[folderName].collapsed =
+					folderEl.classList.contains("collapsed");
 				await saveState();
 			});
 
@@ -114,7 +176,7 @@ function renderFolders() {
 			e.preventDefault();
 			if (folderEl.classList.contains("collapsed")) {
 				folderEl.classList.remove("collapsed");
-				state.collapsed[folderName] = false;
+				state.folders[folderName].collapsed = false;
 				await saveState();
 			}
 			folderEl.classList.add("drag-over");
@@ -127,7 +189,7 @@ function renderFolders() {
 			handleDrop(e, folderName, folderEl),
 		);
 
-		// 3. Delete Folder Event (Only ONE listener!)
+		// 3. Delete Folder Event (No Reload!)
 		folderEl
 			.querySelector(".cg-del-folder")
 			.addEventListener("click", async (e) => {
@@ -136,17 +198,34 @@ function renderFolders() {
 
 				const name = e.currentTarget.dataset.name;
 
-				// Using window.confirm explicitly
 				const userConfirmed = window.confirm(
 					`Are you sure you want to delete the "${name}" folder? Your conversations will move back to the main list.`,
 				);
 
 				if (userConfirmed) {
-					delete state.folders[name];
-					delete state.collapsed[name];
+					// 1. Find the items inside this folder
+					const folderContent = folderEl.querySelector(".cg-folder-content");
+					const items = Array.from(folderContent.children);
 
+					// 2. Move them back to the main container
+					// We'll insert them right after the last folder so they appear at the top of the un-grouped list
+					const lastFolder = Array.from(
+						document.querySelectorAll(".cg-folder"),
+					).pop();
+					const insertAnchor = lastFolder
+						? lastFolder.nextSibling
+						: document.getElementById("cg-controls").nextSibling;
+
+					items.forEach((item) => {
+						parent.insertBefore(item, insertAnchor);
+					});
+
+					// 3. Remove the folder visually from the DOM
+					folderEl.remove();
+
+					// 4. Update the state and save
+					delete state.folders[name];
 					await saveState();
-					location.reload();
 				}
 			});
 
@@ -166,15 +245,13 @@ function organizeExistingConversations() {
 		const id = getConversationId(item);
 		if (!id) return;
 
-		// Make Draggable
 		item.draggable = true;
 		item.addEventListener("dragstart", (e) => {
 			e.dataTransfer.setData("text/plain", id);
 		});
 
-		// Check if it belongs in a folder
-		for (const [folderName, ids] of Object.entries(state.folders)) {
-			if (ids.includes(id)) {
+		for (const [folderName, folderData] of Object.entries(state.folders)) {
+			if (folderData.items.includes(id)) {
 				const folderContent = document.querySelector(
 					`.cg-folder[data-folder="${folderName}"] .cg-folder-content`,
 				);
@@ -185,23 +262,25 @@ function organizeExistingConversations() {
 	});
 }
 
-function handleDrop(e, targetFolderName, folderEl) {
+async function handleDrop(e, targetFolderName, folderEl) {
 	e.preventDefault();
 	folderEl.classList.remove("drag-over");
 
 	const id = e.dataTransfer.getData("text/plain");
 	if (!id) return;
 
-	// Remove ID from all existing folders
+	// Remove ID from old location using the new structure
 	for (const f in state.folders) {
-		state.folders[f] = state.folders[f].filter((itemId) => itemId !== id);
+		state.folders[f].items = state.folders[f].items.filter(
+			(itemId) => itemId !== id,
+		);
 	}
 
 	// Add to new folder
-	state.folders[targetFolderName].push(id);
-	saveState();
+	state.folders[targetFolderName].items.push(id);
+	await saveState();
 
-	// Move in DOM visually
+	// Visually append DOM node
 	const item = document
 		.querySelector(`a[href="/app/${id}"]`)
 		.closest(".conversation-items-container");
