@@ -108,6 +108,10 @@
 	padding: 12px 16px;
 }
 
+.cg-folder-content > div:not(:last-of-type) {
+	margin-bottom: 12px;
+}
+
 /* Icon Buttons (Expand/Delete) */
 .cg-icon-btn {
 	background: none;
