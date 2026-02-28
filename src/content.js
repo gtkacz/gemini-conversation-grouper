@@ -14,12 +14,39 @@ const icons = {
 };
 
 // 1. Initialization
-async function init() {
-	const data = await chrome.storage.local.get(STORAGE_KEY);
-	if (data[STORAGE_KEY]) {
-		state = data[STORAGE_KEY];
+function determineUserKey() {
+	// Attempt 1: Find the Google Account button and extract the email
+	// The aria-label usually looks like: "Google Account: John Doe (john@email.com)"
+	const accountNode = document.querySelector('[aria-label^="Google Account:"]');
+	if (accountNode) {
+		const label = accountNode.getAttribute("aria-label");
+		const emailMatch = label.match(/\(([^)]+)\)/); // Extracts text inside parentheses
+		if (emailMatch && emailMatch[1]) {
+			return `conversation_groups_${emailMatch[1]}`;
+		}
+	}
 
-		// Auto-migrate legacy data to the new unified structure
+	// Attempt 2: Check the URL for a multi-login index (e.g., gemini.google.com/u/1/)
+	const urlMatch = window.location.pathname.match(/\/u\/(\d+)/);
+	if (urlMatch) {
+		return `conversation_groups_u${urlMatch[1]}`;
+	}
+
+	// Fallback if we can't find an identifier
+	return "conversation_groups_default";
+}
+
+async function init() {
+	// 1. Figure out who is logged in
+	currentUserStorageKey = determineUserKey();
+
+	// 2. Fetch data specific to this user
+	const data = await chrome.storage.local.get(currentUserStorageKey);
+
+	if (data[currentUserStorageKey]) {
+		state = data[currentUserStorageKey];
+
+		// Legacy migration (keeps working for the new user-specific states)
 		if (state.collapsed) {
 			const newFolders = {};
 			for (const [name, items] of Object.entries(state.folders)) {
@@ -33,9 +60,12 @@ async function init() {
 				}
 			}
 			state.folders = newFolders;
-			delete state.collapsed; // Purge the redundant key
+			delete state.collapsed;
 			await saveState();
 		}
+	} else {
+		// If no data exists for this user, start fresh
+		state = { folders: {} };
 	}
 
 	injectControls();
@@ -309,7 +339,8 @@ function setupObserver() {
 
 // 6. Data Management
 async function saveState() {
-	await chrome.storage.local.set({ [STORAGE_KEY]: state });
+	// Save using the dynamic key so users don't overwrite each other
+	await chrome.storage.local.set({ [currentUserStorageKey]: state });
 }
 
 function exportJSON() {
