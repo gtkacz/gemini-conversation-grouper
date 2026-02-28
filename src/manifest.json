@@ -1,0 +1,15 @@
+{
+	"manifest_version": 3,
+	"name": "Gemini Conversation Grouper",
+	"version": "1.0",
+	"description": "Groups conversations into custom folders.",
+	"permissions": ["storage"],
+	"content_scripts": [
+		{
+			"matches": ["*://*.gemini.google.com/*"],
+			"css": ["styles.css"],
+			"js": ["content.js"],
+			"run_at": "document_idle"
+		}
+	]
+}

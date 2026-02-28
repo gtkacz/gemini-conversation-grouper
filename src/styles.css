@@ -1,0 +1,72 @@
+/* Container for the custom UI */
+#cg-controls {
+	padding: 10px;
+	border-bottom: 1px solid #ccc;
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+#cg-controls button {
+	padding: 5px 10px;
+	cursor: pointer;
+}
+
+/* Folder styling */
+.cg-folder {
+	border: 1px dashed #888;
+	border-radius: 6px;
+	margin: 10px 0;
+	padding: 10px;
+	min-height: 50px;
+	background: rgba(0, 0, 0, 0.05);
+	transition: background 0.2s;
+}
+
+.cg-folder.drag-over {
+	background: rgba(0, 200, 0, 0.2);
+	border-color: #0c0;
+}
+
+.cg-folder-header {
+	font-weight: bold;
+	margin-bottom: 8px;
+	display: flex;
+	justify-content: space-between;
+}
+
+/* Make conversations obviously draggable */
+.conversation-items-container {
+	cursor: grab;
+}
+
+.conversation-items-container:active {
+	cursor: grabbing;
+}
+
+/* Toggle button styling */
+.cg-toggle-btn {
+	cursor: pointer;
+	background: none;
+	border: none;
+	font-size: 12px;
+	margin-right: 5px;
+	transition: transform 0.2s ease;
+	padding: 0 5px;
+}
+
+/* Header alignment to fit the toggle button */
+.cg-folder-header > div {
+	display: flex;
+	align-items: center;
+}
+
+/* Hide content when collapsed */
+.cg-folder.collapsed .cg-folder-content {
+	display: none;
+}
+
+/* Rotate the arrow when collapsed */
+.cg-folder.collapsed .cg-toggle-btn {
+	transform: rotate(-90deg);
+}
