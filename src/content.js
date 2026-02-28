@@ -74,6 +74,7 @@ function renderFolders() {
 	const parent = document.querySelector(".conversations-container");
 	if (!parent) return;
 
+	// Clean up old folders before rendering
 	document.querySelectorAll(".cg-folder").forEach((el) => el.remove());
 	if (!state.collapsed) state.collapsed = {};
 
@@ -99,21 +100,22 @@ function renderFolders() {
       <div class="cg-folder-content"></div>
     `;
 
-		// Toggle Collapse/Expand Event
-		folderEl.querySelector(".cg-chevron").addEventListener("click", () => {
-			folderEl.classList.toggle("collapsed");
-			state.collapsed[folderName] = folderEl.classList.contains("collapsed");
-			saveState();
-		});
+		// 1. Toggle Collapse/Expand Event
+		folderEl
+			.querySelector(".cg-chevron")
+			.addEventListener("click", async () => {
+				folderEl.classList.toggle("collapsed");
+				state.collapsed[folderName] = folderEl.classList.contains("collapsed");
+				await saveState();
+			});
 
-		// Drag and Drop Events for Folder
-		folderEl.addEventListener("dragover", (e) => {
+		// 2. Drag and Drop Events
+		folderEl.addEventListener("dragover", async (e) => {
 			e.preventDefault();
-			// Optional: Auto-expand folder when dragging over it
 			if (folderEl.classList.contains("collapsed")) {
 				folderEl.classList.remove("collapsed");
 				state.collapsed[folderName] = false;
-				saveState();
+				await saveState();
 			}
 			folderEl.classList.add("drag-over");
 		});
@@ -125,40 +127,33 @@ function renderFolders() {
 			handleDrop(e, folderName, folderEl),
 		);
 
-		// Delete Folder Event
-		folderEl.querySelector(".cg-del-folder").addEventListener("click", (e) => {
-			const name = e.target.dataset.name;
-			delete state.folders[name];
-			delete state.collapsed[name]; // Clean up collapsed state too
-			saveState();
-			location.reload();
-		});
+		// 3. Delete Folder Event (Only ONE listener!)
+		folderEl
+			.querySelector(".cg-del-folder")
+			.addEventListener("click", async (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+
+				const name = e.currentTarget.dataset.name;
+
+				// Using window.confirm explicitly
+				const userConfirmed = window.confirm(
+					`Are you sure you want to delete the "${name}" folder? Your conversations will move back to the main list.`,
+				);
+
+				if (userConfirmed) {
+					delete state.folders[name];
+					delete state.collapsed[name];
+
+					await saveState();
+					location.reload();
+				}
+			});
 
 		parent.insertBefore(
 			folderEl,
 			document.getElementById("cg-controls").nextSibling,
 		);
-
-		folderEl
-			.querySelector(".cg-del-folder")
-			.addEventListener("click", async (e) => {
-				e.preventDefault();
-				e.stopPropagation(); // Prevents my host UI from interfering
-
-				const name = e.currentTarget.dataset.name;
-
-				if (
-					confirm(
-						`Are you sure you want to delete the "${name}" folder? Your conversations will just move back to the main list.`,
-					)
-				) {
-					delete state.folders[name];
-					delete state.collapsed[name];
-
-					await saveState(); // Wait for the disk write to finish!
-					location.reload();
-				}
-			});
 	});
 }
 
