@@ -206,18 +206,19 @@ function renderFolders() {
             </button>
         </div>
       </div>
-      <div class="cg-folder-search" style="display:none; padding:8px 16px; border-bottom:1px solid var(--cg-border);">
-        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-            <input type="text" class="cg-search-input" placeholder="Search loaded conversations..." style="flex:1; padding:6px; border:1px solid var(--cg-border); border-radius:4px; background:var(--cg-bg); color:var(--cg-text);">
+      <div class="cg-folder-search" style="display:none;">
+        <div class="cg-search-container">
+            <span style="color:var(--cg-text-muted); display:flex;">${icons.search}</span>
+            <input type="text" class="cg-search-input" placeholder="Search loaded conversations...">
             <button class="cg-icon-btn cg-refresh-search" title="Refresh loaded conversations">${icons.refresh}</button>
-            <div class="cg-tooltip-container" style="position:relative; display:inline-flex;">
+            <div class="cg-tooltip-container" style="position:relative; display:flex;">
                 <span class="cg-icon-btn cg-help-icon" style="cursor:help;">${icons.help}</span>
-                <div class="cg-tooltip" style="display:none; position:absolute; right:0; top:100%; width:200px; background:var(--cg-bg); border:1px solid var(--cg-border); padding:8px; border-radius:4px; z-index:10; font-size:12px; box-shadow:0 2px 4px var(--cg-shadow); color:var(--cg-text);">
+                <div class="cg-tooltip" style="display:none; position:absolute; right:0; top:100%; width:220px; z-index:100;">
                     Only conversations currently loaded in the page (DOM) can be searched. Scroll down to load more.
                 </div>
             </div>
         </div>
-        <div class="cg-search-results" style="max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;"></div>
+        <div class="cg-search-results"></div>
       </div>
       <div class="cg-folder-content"></div>
     `;
@@ -278,23 +279,17 @@ function renderFolders() {
 			});
 
 			if (matches.length === 0) {
-				resultsContainer.innerHTML = `<div style="padding:4px; color:var(--cg-text-muted); font-size:12px;">No matches found.</div>`;
+				resultsContainer.innerHTML = `<div style="padding:12px; text-align:center; color:var(--cg-text-muted); font-size:12px;">No matches found.</div>`;
 				return;
 			}
 
 			matches.forEach((match) => {
 				const div = document.createElement("div");
 				div.className = "cg-search-result-item";
-				div.style.cssText =
-					"padding:4px 8px; cursor:pointer; border-radius:4px; font-size:13px; display:flex; align-items:center; gap:8px; color:var(--cg-text);";
-				div.innerHTML = `<span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${match.title}</span> <span style="color:var(--cg-blue); font-size:16px;">+</span>`;
-
-				div.addEventListener("mouseenter", () =>
-					div.style.backgroundColor = "var(--cg-bg-hover)"
-				);
-				div.addEventListener("mouseleave", () =>
-					div.style.backgroundColor = "transparent"
-				);
+				div.innerHTML = `
+					<span class="cg-search-result-title">${match.title}</span>
+					<span class="cg-add-icon">${icons.add}</span>
+				`;
 
 				div.addEventListener("click", async () => {
 					// Move item to folder logic
@@ -314,7 +309,7 @@ function renderFolders() {
 					// Remove from search results
 					div.remove();
 					if (resultsContainer.children.length === 0) {
-						resultsContainer.innerHTML = `<div style="padding:4px; color:var(--cg-text-muted); font-size:12px;">No more matches.</div>`;
+						resultsContainer.innerHTML = `<div style="padding:12px; text-align:center; color:var(--cg-text-muted); font-size:12px;">No more matches.</div>`;
 					}
 				});
 

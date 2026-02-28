@@ -1,0 +1,46 @@
+name: Deploy Browser Extension
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+jobs:
+  build-release-deploy:
+    runs-on: ubuntu-latest
+
+    # Explicitly grant the Action permission to create a Release
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Zip the extension files
+        run: zip -r extension.zip . -x "*.git*" ".github/*"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: extension.zip # Automatically attaches the zipped extension to the release
+          generate_release_notes: true # Auto-generates notes based on merged PRs/commits
+
+      - name: Upload to Chrome Web Store
+        uses: mnao305/chrome-webstore-upload@v1.1.1
+        with:
+          file-path: extension.zip
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CHROME_CLIENT_ID }}
+          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          publish: true
+
+      - name: Upload to Firefox AMO
+        uses: fregante/amo-upload-action@v1
+        with:
+          source: .
+          addon-id: ${{ secrets.FIREFOX_EXTENSION_ID }}
+          jwt-issuer: ${{ secrets.FIREFOX_JWT_ISSUER }}
+          jwt-secret: ${{ secrets.FIREFOX_JWT_SECRET }}
+          channel: listed
