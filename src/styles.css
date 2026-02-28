@@ -264,8 +264,10 @@
 	background-color: var(--cg-surface-container);
 	border-radius: 24px; /* Pill shape */
 	padding: 4px 12px;
-	margin-bottom: 12px;
-	transition: background-color 0.2s ease, box-shadow 0.2s ease;
+	margin-bottom: 8px;
+	transition:
+		background-color 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .cg-search-container:focus-within {
@@ -282,24 +284,52 @@
 	font-size: 14px;
 	color: var(--cg-text);
 	outline: none;
+	min-width: 0; /* Allow flex item to shrink */
 }
 
 .cg-search-input::placeholder {
 	color: var(--cg-text-muted);
 }
 
-/* Tooltip */
-.cg-tooltip {
-	pointer-events: none;
-	line-height: 1.4;
-	white-space: normal;
-	background-color: #3c4043; /* Dark tooltip bg */
-	color: #fff;
-	padding: 8px 12px;
-	border-radius: 4px;
-	font-size: 12px;
-	box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-	z-index: 1000; /* Ensure tooltip is above other elements */
+/* Refresh Button inside Search Bar */
+.cg-refresh-search {
+	color: var(--cg-text-muted);
+	padding: 4px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	background: transparent;
+	border: none;
+}
+
+.cg-refresh-search:hover {
+	color: var(--cg-text);
+	background-color: var(--cg-bg-hover);
+}
+
+.cg-refresh-search svg {
+	width: 18px;
+	height: 18px;
+	fill: currentColor;
+}
+.cg-help-note {
+	font-size: 11px;
+	color: var(--cg-text-muted);
+	margin-bottom: 12px;
+	margin-left: 12px;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.cg-help-note svg {
+	width: 14px;
+	height: 14px;
+	fill: currentColor;
+	opacity: 0.7;
 }
 
 /* Search Results */

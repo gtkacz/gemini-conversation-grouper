@@ -86,7 +86,10 @@ function getConversationId(itemContainer) {
 }
 
 function normalizeText(text) {
-	return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+	return text
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase();
 }
 
 function getConversationTitle(itemContainer) {
@@ -209,14 +212,11 @@ function renderFolders() {
       <div class="cg-folder-search" style="display:none;">
         <div class="cg-search-container">
             <span style="color:var(--cg-text-muted); display:flex;">${icons.search}</span>
-            <input type="text" class="cg-search-input" placeholder="Search loaded conversations...">
-            <button class="cg-icon-btn cg-refresh-search" title="Refresh loaded conversations">${icons.refresh}</button>
-            <div class="cg-tooltip-container" style="position:relative; display:flex;">
-                <span class="cg-icon-btn cg-help-icon" style="cursor:help;">${icons.help}</span>
-                <div class="cg-tooltip" style="display:none; position:absolute; right:0; top:100%; width:220px; z-index:100;">
-                    Only conversations currently loaded in the page (DOM) can be searched. Scroll down to load more.
-                </div>
-            </div>
+            <input type="text" class="cg-search-input" placeholder="Search...">
+            <button class="cg-refresh-search" title="Refresh loaded conversations">${icons.refresh}</button>
+        </div>
+        <div class="cg-help-note">
+            Only conversations currently loaded in the page can be searched. Scroll down to load more.
         </div>
         <div class="cg-search-results"></div>
       </div>
@@ -228,8 +228,6 @@ function renderFolders() {
 		const searchPanel = folderEl.querySelector(".cg-folder-search");
 		const searchInput = folderEl.querySelector(".cg-search-input");
 		const refreshBtn = folderEl.querySelector(".cg-refresh-search");
-		const helpIcon = folderEl.querySelector(".cg-help-icon");
-		const tooltip = folderEl.querySelector(".cg-tooltip");
 		const resultsContainer = folderEl.querySelector(".cg-search-results");
 
 		searchBtn.addEventListener("click", (e) => {
@@ -248,9 +246,6 @@ function renderFolders() {
 			}
 		});
 
-		helpIcon.addEventListener("mouseenter", () => (tooltip.style.display = "block"));
-		helpIcon.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
-
 		function updateSearchResults() {
 			const query = normalizeText(searchInput.value);
 			resultsContainer.innerHTML = "";
@@ -268,7 +263,7 @@ function renderFolders() {
 			allItems.forEach((item) => {
 				const id = getConversationId(item);
 				if (!id) return;
-				
+
 				// Skip if already in this folder
 				if (state.folders[folderName].items.includes(id)) return;
 
@@ -304,7 +299,9 @@ function renderFolders() {
 					await saveState();
 
 					// Move DOM element
-					folderEl.querySelector(".cg-folder-content").appendChild(match.element);
+					folderEl
+						.querySelector(".cg-folder-content")
+						.appendChild(match.element);
 
 					// Remove from search results
 					div.remove();
