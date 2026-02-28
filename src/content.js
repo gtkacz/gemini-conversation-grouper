@@ -14,6 +14,7 @@ const icons = {
 	search: `<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>`,
 	help: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>`,
 	refresh: `<svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`,
+	folder_off: `<svg viewBox="0 0 24 24"><path d="M22 6H12l-2-2H2v16h20V6zm-2 14H4V6h5.17l2 2H20v12zM12 14h6v2h-6z"/></svg>`, // Folder with minus
 };
 
 // 1. Initialization
@@ -75,6 +76,7 @@ async function init() {
 	renderFolders();
 	organizeExistingConversations();
 	setupObserver();
+	setupMenuHijack();
 }
 
 // 2. Core DOM Manipulation & ID Extraction
@@ -463,7 +465,144 @@ function setupObserver() {
 	observer.observe(parent, { childList: true });
 }
 
-// 6. Data Management
+// 6. Menu Hijacking
+let activeMenuConversationId = null;
+
+function setupMenuHijack() {
+	// 1. Track the conversation ID when a menu trigger is clicked
+	document.addEventListener(
+		"click",
+		(e) => {
+			const item = e.target.closest(".conversation-items-container");
+			if (item) {
+				const id = getConversationId(item);
+				if (id) {
+					activeMenuConversationId = id;
+				}
+			}
+		},
+		true,
+	); // Capture phase
+
+	// 2. Observer for the menu overlay
+	const observer = new MutationObserver((mutations) => {
+		const menuPanel = document.querySelector(".conversation-actions-menu");
+		if (menuPanel && !menuPanel.dataset.hijacked) {
+			injectRemoveButton(menuPanel);
+		}
+	});
+
+	observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function injectRemoveButton(menuPanel) {
+	menuPanel.dataset.hijacked = "true";
+
+	// Create the button
+	const btn = document.createElement("button");
+	// Classes from the user's snippet
+	btn.className = "mat-mdc-menu-item mat-focus-indicator ng-star-inserted";
+	btn.setAttribute("role", "menuitem");
+	btn.setAttribute("tabindex", "0");
+	btn.setAttribute("aria-disabled", "false");
+
+	// Icon
+	const iconSpan = document.createElement("mat-icon");
+	iconSpan.className =
+		"mat-icon notranslate gds-icon-l google-symbols mat-ligature-font mat-icon-no-color";
+	iconSpan.setAttribute("role", "img");
+	iconSpan.setAttribute("aria-hidden", "true");
+	iconSpan.setAttribute("data-mat-icon-type", "font");
+	// We use our SVG inside to ensure it renders correctly regardless of font loading
+	iconSpan.innerHTML = icons.folder_off;
+	// Style the SVG to match mat-icon size
+	const svg = iconSpan.querySelector("svg");
+	if (svg) {
+		svg.style.width = "24px";
+		svg.style.height = "24px";
+		svg.style.fill = "currentColor";
+	}
+
+	// Text
+	const textSpan = document.createElement("span");
+	textSpan.className = "mat-mdc-menu-item-text";
+	textSpan.innerHTML = `<span class="gds-body-m">Remove from folders</span>`;
+
+	// Ripple effect container (visual only)
+	const ripple = document.createElement("div");
+	ripple.className = "mat-ripple mat-mdc-menu-ripple";
+
+	btn.appendChild(iconSpan);
+	btn.appendChild(textSpan);
+	btn.appendChild(ripple);
+
+	// Click handler
+	btn.addEventListener("click", async (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+
+		if (activeMenuConversationId) {
+			await removeConversationFromFolders(activeMenuConversationId);
+
+			// Close menu by clicking the backdrop
+			const backdrop = document.querySelector(".cdk-overlay-backdrop");
+			if (backdrop) backdrop.click();
+			else menuPanel.remove(); // Fallback
+		}
+	});
+
+	// Insert into menu content
+	const content = menuPanel.querySelector(".mat-mdc-menu-content");
+	if (content) {
+		// Insert at the end or specific position?
+		// User snippet shows Pin, Rename. We can add it at the end.
+		content.appendChild(btn);
+	}
+}
+
+async function removeConversationFromFolders(id) {
+	let changed = false;
+	for (const folderName in state.folders) {
+		const index = state.folders[folderName].items.indexOf(id);
+		if (index > -1) {
+			state.folders[folderName].items.splice(index, 1);
+			changed = true;
+		}
+	}
+
+	if (changed) {
+		await saveState();
+
+		// Move the element back to the main list if it's currently visible in a folder
+		const link = document.querySelector(`a[href="/app/${id}"]`);
+		if (link) {
+			const item = link.closest(".conversation-items-container");
+			if (item) {
+				const folderContent = item.closest(".cg-folder-content");
+				if (folderContent) {
+					// Move it back to main list
+					// Insert after the last folder to keep it organized
+					const lastFolder = Array.from(
+						document.querySelectorAll(".cg-folder"),
+					).pop();
+					const insertAnchor = lastFolder
+						? lastFolder.nextSibling
+						: document.getElementById("cg-controls").nextSibling;
+					
+                    // We need to find the parent container.
+                    // The item is currently in .cg-folder-content.
+                    // We want to move it to .conversations-container.
+                    const mainContainer = document.querySelector(".conversations-container");
+                    if (mainContainer) {
+                        mainContainer.insertBefore(item, insertAnchor);
+                    }
+				}
+			}
+		}
+	}
+}
+
+// 7. Data Management
 async function saveState() {
 	// Save using the dynamic key so users don't overwrite each other
 	await chrome.storage.local.set({ [currentUserStorageKey]: state });
