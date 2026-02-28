@@ -2,6 +2,16 @@
 let state = { folders: {}, collapsed: {} };
 const STORAGE_KEY = "gemini_conversation_groups";
 
+// Material Design SVG Icons
+const icons = {
+	add: `<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>`,
+	folder: `<svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>`,
+	delete: `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,
+	export: `<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`,
+	import: `<svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>`,
+	chevron: `<svg viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg>`,
+};
+
 // 1. Initialization
 async function init() {
 	const data = await chrome.storage.local.get(STORAGE_KEY);
@@ -30,9 +40,9 @@ function injectControls() {
 	controlsDiv.id = "cg-controls";
 
 	controlsDiv.innerHTML = `
-    <button id="cg-add-folder">➕ New Folder</button>
-    <button id="cg-export">💾 Export</button>
-    <button id="cg-import-btn">📂 Import</button>
+    <button id="cg-add-folder" class="cg-btn">${icons.add} New</button>
+    <button id="cg-export" class="cg-btn">${icons.export} Export</button>
+    <button id="cg-import-btn" class="cg-btn">${icons.import} Import</button>
     <input type="file" id="cg-import-file" accept=".json" style="display:none;">
   `;
 
@@ -61,35 +71,33 @@ function renderFolders() {
 	const parent = document.querySelector(".conversations-container");
 	if (!parent) return;
 
-	// Clean up old folders
 	document.querySelectorAll(".cg-folder").forEach((el) => el.remove());
-
-	// Ensure collapsed state object exists (for backward compatibility if upgrading)
 	if (!state.collapsed) state.collapsed = {};
 
 	Object.keys(state.folders).forEach((folderName) => {
 		const folderEl = document.createElement("div");
 		folderEl.className = "cg-folder";
+		if (state.collapsed[folderName]) folderEl.classList.add("collapsed");
 		folderEl.dataset.folder = folderName;
-
-		// Check if this folder should be collapsed initially
-		if (state.collapsed[folderName]) {
-			folderEl.classList.add("collapsed");
-		}
 
 		folderEl.innerHTML = `
       <div class="cg-folder-header">
-        <div>
-          <button class="cg-toggle-btn">▼</button>
-          <span>📁 ${folderName}</span>
+        <div class="cg-folder-header-left">
+          <button class="cg-icon-btn cg-chevron">${icons.chevron}</button>
+          <span style="display:flex; align-items:center; gap:8px;">
+            <span class="cg-folder-icon">${icons.folder}</span>
+            ${folderName}
+          </span>
         </div>
-        <button class="cg-del-folder" data-name="${folderName}">X</button>
+        <button class="cg-icon-btn cg-del-folder" data-name="${folderName}" title="Delete Folder">
+          ${icons.delete}
+        </button>
       </div>
       <div class="cg-folder-content"></div>
     `;
 
 		// Toggle Collapse/Expand Event
-		folderEl.querySelector(".cg-toggle-btn").addEventListener("click", () => {
+		folderEl.querySelector(".cg-chevron").addEventListener("click", () => {
 			folderEl.classList.toggle("collapsed");
 			state.collapsed[folderName] = folderEl.classList.contains("collapsed");
 			saveState();
@@ -127,6 +135,23 @@ function renderFolders() {
 			folderEl,
 			document.getElementById("cg-controls").nextSibling,
 		);
+
+		folderEl.querySelector(".cg-del-folder").addEventListener("click", (e) => {
+			// Use currentTarget to get the button element, not the SVG path inside it
+			const name = e.currentTarget.dataset.name;
+
+			// Added a confirmation dialog so you don't accidentally delete folders!
+			if (
+				confirm(
+					`Are you sure you want to delete the "${name}" folder? Your conversations will just move back to the main list.`,
+				)
+			) {
+				delete state.folders[name];
+				delete state.collapsed[name];
+				saveState();
+				location.reload();
+			}
+		});
 	});
 }
 

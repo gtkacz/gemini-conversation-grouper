@@ -1,72 +1,156 @@
-/* Container for the custom UI */
+/* Gemini-inspired Theme Variables */
+:root {
+	--cg-bg: #ffffff;
+	--cg-bg-hover: #f8f9fa;
+	--cg-bg-folder: #ffffff;
+	--cg-bg-folder-header: #f8f9fa;
+	--cg-text: #202124;
+	--cg-text-muted: #5f6368;
+	--cg-border: #dadce0;
+	--cg-blue: #1a73e8;
+	--cg-blue-hover: #f4f8fe;
+	--cg-shadow: rgba(60, 64, 67, 0.3);
+	--cg-shadow-light: rgba(60, 64, 67, 0.15);
+}
+
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+	:root {
+		--cg-bg: #131314; /* Gemini's specific dark background */
+		--cg-bg-hover: #1e1f20;
+		--cg-bg-folder: #1e1f20;
+		--cg-bg-folder-header: #282a2c;
+		--cg-text: #e3e3e3;
+		--cg-text-muted: #c4c7c5;
+		--cg-border: #444746;
+		--cg-blue: #a8c7fa; /* Gemini's specific dark mode blue */
+		--cg-blue-hover: rgba(168, 199, 250, 0.08);
+		--cg-shadow: rgba(0, 0, 0, 0.5);
+		--cg-shadow-light: rgba(0, 0, 0, 0.3);
+	}
+}
+
+/* Container for controls */
 #cg-controls {
-	padding: 10px;
-	border-bottom: 1px solid #ccc;
+	padding: 12px 16px;
 	display: flex;
-	gap: 10px;
+	gap: 8px;
 	flex-wrap: wrap;
+	background-color: transparent;
+	margin-bottom: 8px;
 }
 
-#cg-controls button {
-	padding: 5px 10px;
+/* Material Buttons */
+.cg-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 16px;
+	font-family: "Google Sans", "Roboto", sans-serif;
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--cg-blue);
+	background-color: var(--cg-bg);
+	border: 1px solid var(--cg-border);
+	border-radius: 20px; /* More rounded to match Gemini */
 	cursor: pointer;
+	transition: all 0.2s ease;
 }
 
-/* Folder styling */
+.cg-btn:hover {
+	background-color: var(--cg-blue-hover);
+	border-color: var(--cg-blue);
+}
+
+.cg-btn svg {
+	width: 18px;
+	height: 18px;
+	fill: currentColor;
+}
+
+/* Material Folders */
 .cg-folder {
-	border: 1px dashed #888;
-	border-radius: 6px;
-	margin: 10px 0;
-	padding: 10px;
-	min-height: 50px;
-	background: rgba(0, 0, 0, 0.05);
-	transition: background 0.2s;
+	background: var(--cg-bg-folder);
+	border: 1px solid var(--cg-border);
+	border-radius: 12px;
+	margin: 8px 12px;
+	overflow: hidden;
+	transition: all 0.2s ease;
+	font-family: "Google Sans", "Roboto", sans-serif;
+	color: var(--cg-text);
 }
 
 .cg-folder.drag-over {
-	background: rgba(0, 200, 0, 0.2);
-	border-color: #0c0;
+	border-color: var(--cg-blue);
+	background-color: var(--cg-blue-hover);
+	box-shadow: 0 0 0 1px var(--cg-blue);
 }
 
+/* Folder Header */
 .cg-folder-header {
-	font-weight: bold;
-	margin-bottom: 8px;
 	display: flex;
 	justify-content: space-between;
+	align-items: center;
+	padding: 12px 16px;
+	background-color: var(--cg-bg-folder-header);
+	border-bottom: 1px solid var(--cg-border);
+	font-weight: 500;
 }
 
-/* Make conversations obviously draggable */
-.conversation-items-container {
-	cursor: grab;
-}
-
-.conversation-items-container:active {
-	cursor: grabbing;
-}
-
-/* Toggle button styling */
-.cg-toggle-btn {
-	cursor: pointer;
-	background: none;
-	border: none;
-	font-size: 12px;
-	margin-right: 5px;
-	transition: transform 0.2s ease;
-	padding: 0 5px;
-}
-
-/* Header alignment to fit the toggle button */
-.cg-folder-header > div {
+.cg-folder-header-left {
 	display: flex;
 	align-items: center;
+	gap: 8px;
 }
 
-/* Hide content when collapsed */
+/* Icon Buttons (Expand/Delete) */
+.cg-icon-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 6px;
+	border-radius: 50%;
+	color: var(--cg-text-muted);
+	transition: all 0.2s ease;
+}
+
+.cg-icon-btn:hover {
+	background-color: var(--cg-bg-hover);
+	color: var(--cg-text);
+}
+
+.cg-icon-btn svg {
+	width: 20px;
+	height: 20px;
+	fill: currentColor;
+	transition: transform 0.2s ease;
+}
+
+/* Make the folder icon explicitly blue */
+.cg-folder-icon {
+	color: var(--cg-blue);
+	display: flex;
+}
+
+/* Collapsed State */
 .cg-folder.collapsed .cg-folder-content {
 	display: none;
 }
 
-/* Rotate the arrow when collapsed */
-.cg-folder.collapsed .cg-toggle-btn {
+.cg-folder.collapsed .cg-folder-header {
+	border-bottom: none;
+}
+
+.cg-folder.collapsed .cg-chevron svg {
 	transform: rotate(-90deg);
+}
+
+.conversation-items-container {
+	cursor: grab;
+}
+.conversation-items-container:active {
+	cursor: grabbing;
 }
