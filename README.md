@@ -1,4 +1,4 @@
-# gemini-conversation-grouper# Gemini Conversation Grouper
+# Gemini Conversation Grouper
 
 A lightweight, vanilla JavaScript browser extension that allows users to organize their Google Gemini conversations into custom, collapsible folders. Built with a native-feeling Material Design UI.
 
@@ -30,7 +30,7 @@ A lightweight, vanilla JavaScript browser extension that allows users to organiz
 ## Usage
 
 * Click **New Folder** to create a group.
-* Drag any conversation from the sidebar into the folder.
+* Drag any conversation from the sidebar into the folder or search for already-loaded conversations.
 * Click the chevron arrow next to a folder name to collapse or expand it.
 * Click the **Export** icon to download a backup of your structure.
 * Click the **Import** icon to load a previous backup.

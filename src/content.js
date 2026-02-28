@@ -50,23 +50,8 @@ async function init() {
 	if (data[currentUserStorageKey]) {
 		state = data[currentUserStorageKey];
 
-		// Legacy migration (keeps working for the new user-specific states)
-		if (state.collapsed) {
-			const newFolders = {};
-			for (const [name, items] of Object.entries(state.folders)) {
-				if (Array.isArray(items)) {
-					newFolders[name] = {
-						items: items,
-						collapsed: !!state.collapsed[name],
-					};
-				} else {
-					newFolders[name] = items;
-				}
-			}
-			state.folders = newFolders;
-			delete state.collapsed;
-			await saveState();
-		}
+		// Legacy migration removed
+
 	} else {
 		// If no data exists for this user, start fresh
 		state = { folders: {} };
@@ -183,12 +168,16 @@ function renderFolders() {
 
 	// Clean up old folders before rendering
 	document.querySelectorAll(".cg-folder").forEach((el) => el.remove());
-	if (!state.collapsed) state.collapsed = {};
 
 	Object.keys(state.folders).forEach((folderName) => {
 		const folderEl = document.createElement("div");
 		folderEl.className = "cg-folder";
-		if (state.folders[folderName].collapsed) {
+		const fData = state.folders[folderName];
+		// Default to collapsed if undefined and has content, or if explicitly collapsed
+		if (
+			fData.collapsed ||
+			(fData.collapsed === undefined && fData.items && fData.items.length > 0)
+		) {
 			folderEl.classList.add("collapsed");
 		}
 		folderEl.dataset.folder = folderName;
@@ -526,7 +515,7 @@ function injectRemoveButton(menuPanel) {
 	// Text
 	const textSpan = document.createElement("span");
 	textSpan.className = "mat-mdc-menu-item-text";
-	textSpan.innerHTML = `<span class="gds-body-m">Remove from folders</span>`;
+	textSpan.innerHTML = `<span class="gds-body-m">Remove from folder</span>`;
 
 	// Ripple effect container (visual only)
 	const ripple = document.createElement("div");
@@ -588,14 +577,16 @@ async function removeConversationFromFolders(id) {
 					const insertAnchor = lastFolder
 						? lastFolder.nextSibling
 						: document.getElementById("cg-controls").nextSibling;
-					
-                    // We need to find the parent container.
-                    // The item is currently in .cg-folder-content.
-                    // We want to move it to .conversations-container.
-                    const mainContainer = document.querySelector(".conversations-container");
-                    if (mainContainer) {
-                        mainContainer.insertBefore(item, insertAnchor);
-                    }
+
+					// We need to find the parent container.
+					// The item is currently in .cg-folder-content.
+					// We want to move it to .conversations-container.
+					const mainContainer = document.querySelector(
+						".conversations-container",
+					);
+					if (mainContainer) {
+						mainContainer.insertBefore(item, insertAnchor);
+					}
 				}
 			}
 		}
