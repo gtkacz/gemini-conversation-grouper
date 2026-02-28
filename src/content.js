@@ -48,14 +48,17 @@ function injectControls() {
 
 	parent.prepend(controlsDiv);
 
-	document.getElementById("cg-add-folder").addEventListener("click", () => {
-		const name = prompt("Folder Name:");
-		if (name && !state.folders[name]) {
-			state.folders[name] = [];
-			saveState();
-			renderFolders();
-		}
-	});
+	document
+		.getElementById("cg-add-folder")
+		.addEventListener("click", async (e) => {
+			e.preventDefault();
+			const name = prompt("Folder Name:");
+			if (name && !state.folders[name]) {
+				state.folders[name] = [];
+				await saveState(); // Wait for it to save
+				renderFolders();
+			}
+		});
 
 	document.getElementById("cg-export").addEventListener("click", exportJSON);
 	document.getElementById("cg-import-btn").addEventListener("click", () => {
@@ -136,22 +139,26 @@ function renderFolders() {
 			document.getElementById("cg-controls").nextSibling,
 		);
 
-		folderEl.querySelector(".cg-del-folder").addEventListener("click", (e) => {
-			// Use currentTarget to get the button element, not the SVG path inside it
-			const name = e.currentTarget.dataset.name;
+		folderEl
+			.querySelector(".cg-del-folder")
+			.addEventListener("click", async (e) => {
+				e.preventDefault();
+				e.stopPropagation(); // Prevents my host UI from interfering
 
-			// Added a confirmation dialog so you don't accidentally delete folders!
-			if (
-				confirm(
-					`Are you sure you want to delete the "${name}" folder? Your conversations will just move back to the main list.`,
-				)
-			) {
-				delete state.folders[name];
-				delete state.collapsed[name];
-				saveState();
-				location.reload();
-			}
-		});
+				const name = e.currentTarget.dataset.name;
+
+				if (
+					confirm(
+						`Are you sure you want to delete the "${name}" folder? Your conversations will just move back to the main list.`,
+					)
+				) {
+					delete state.folders[name];
+					delete state.collapsed[name];
+
+					await saveState(); // Wait for the disk write to finish!
+					location.reload();
+				}
+			});
 	});
 }
 
@@ -227,8 +234,8 @@ function setupObserver() {
 }
 
 // 6. Data Management
-function saveState() {
-	chrome.storage.local.set({ [STORAGE_KEY]: state });
+async function saveState() {
+	await chrome.storage.local.set({ [STORAGE_KEY]: state });
 }
 
 function exportJSON() {
