@@ -11,5 +11,16 @@
 			"js": ["content.js"],
 			"run_at": "document_idle"
 		}
-	]
+	],
+	"icons": {
+		"16": "icons/gemini_16.png",
+		"48": "icons/gemini_48.png",
+		"128": "icons/gemini_128.png"
+	},
+	"browser_specific_settings": {
+		"gecko": {
+			"id": "gabriel+geminiconversationgrouper@tkacz.dev.br",
+			"strict_min_version": "109.0"
+		}
+	}
 }
