@@ -11,6 +11,9 @@ const icons = {
 	chevron: `<svg viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg>`,
 	check: `<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`,
 	cancel: `<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>`,
+	search: `<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>`,
+	help: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>`,
+	refresh: `<svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`,
 };
 
 // 1. Initialization
@@ -80,6 +83,16 @@ function getConversationId(itemContainer) {
 	if (!link) return null;
 	const href = link.getAttribute("href"); // e.g., /app/12345
 	return href.split("/app/")[1];
+}
+
+function normalizeText(text) {
+	return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function getConversationTitle(itemContainer) {
+	const link = itemContainer.querySelector("a");
+	if (!link) return "";
+	return link.textContent.trim();
 }
 
 // 3. Inject UI Controls (Buttons)
@@ -184,12 +197,133 @@ function renderFolders() {
             ${folderName}
           </span>
         </div>
-        <button class="cg-icon-btn cg-del-folder" data-name="${folderName}" title="Delete Folder">
-          ${icons.delete}
-        </button>
+        <div class="cg-folder-header-right" style="display:flex; gap:4px;">
+            <button class="cg-icon-btn cg-search-folder" title="Search to Add">
+                ${icons.search}
+            </button>
+            <button class="cg-icon-btn cg-del-folder" data-name="${folderName}" title="Delete Folder">
+                ${icons.delete}
+            </button>
+        </div>
+      </div>
+      <div class="cg-folder-search" style="display:none; padding:8px 16px; border-bottom:1px solid var(--cg-border);">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+            <input type="text" class="cg-search-input" placeholder="Search loaded conversations..." style="flex:1; padding:6px; border:1px solid var(--cg-border); border-radius:4px; background:var(--cg-bg); color:var(--cg-text);">
+            <button class="cg-icon-btn cg-refresh-search" title="Refresh loaded conversations">${icons.refresh}</button>
+            <div class="cg-tooltip-container" style="position:relative; display:inline-flex;">
+                <span class="cg-icon-btn cg-help-icon" style="cursor:help;">${icons.help}</span>
+                <div class="cg-tooltip" style="display:none; position:absolute; right:0; top:100%; width:200px; background:var(--cg-bg); border:1px solid var(--cg-border); padding:8px; border-radius:4px; z-index:10; font-size:12px; box-shadow:0 2px 4px var(--cg-shadow); color:var(--cg-text);">
+                    Only conversations currently loaded in the page (DOM) can be searched. Scroll down to load more.
+                </div>
+            </div>
+        </div>
+        <div class="cg-search-results" style="max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;"></div>
       </div>
       <div class="cg-folder-content"></div>
     `;
+
+		// Search Logic
+		const searchBtn = folderEl.querySelector(".cg-search-folder");
+		const searchPanel = folderEl.querySelector(".cg-folder-search");
+		const searchInput = folderEl.querySelector(".cg-search-input");
+		const refreshBtn = folderEl.querySelector(".cg-refresh-search");
+		const helpIcon = folderEl.querySelector(".cg-help-icon");
+		const tooltip = folderEl.querySelector(".cg-tooltip");
+		const resultsContainer = folderEl.querySelector(".cg-search-results");
+
+		searchBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			const isHidden = searchPanel.style.display === "none";
+			searchPanel.style.display = isHidden ? "block" : "none";
+			if (isHidden) {
+				searchInput.focus();
+				// Expand folder if collapsed
+				if (folderEl.classList.contains("collapsed")) {
+					folderEl.classList.remove("collapsed");
+					state.folders[folderName].collapsed = false;
+					saveState();
+				}
+				updateSearchResults();
+			}
+		});
+
+		helpIcon.addEventListener("mouseenter", () => (tooltip.style.display = "block"));
+		helpIcon.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
+
+		function updateSearchResults() {
+			const query = normalizeText(searchInput.value);
+			resultsContainer.innerHTML = "";
+
+			if (!query) return;
+
+			// Find all conversation items that are NOT in any folder (or at least not in THIS folder)
+			// Actually, we should look at ALL items in the DOM, but prioritize those not in this folder.
+			// The user wants to "add" them. So we should list items that can be moved here.
+			const allItems = document.querySelectorAll(
+				".conversations-container > .conversation-items-container",
+			);
+			const matches = [];
+
+			allItems.forEach((item) => {
+				const id = getConversationId(item);
+				if (!id) return;
+				
+				// Skip if already in this folder
+				if (state.folders[folderName].items.includes(id)) return;
+
+				const title = getConversationTitle(item);
+				if (normalizeText(title).includes(query)) {
+					matches.push({ id, title, element: item });
+				}
+			});
+
+			if (matches.length === 0) {
+				resultsContainer.innerHTML = `<div style="padding:4px; color:var(--cg-text-muted); font-size:12px;">No matches found.</div>`;
+				return;
+			}
+
+			matches.forEach((match) => {
+				const div = document.createElement("div");
+				div.className = "cg-search-result-item";
+				div.style.cssText =
+					"padding:4px 8px; cursor:pointer; border-radius:4px; font-size:13px; display:flex; align-items:center; gap:8px; color:var(--cg-text);";
+				div.innerHTML = `<span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${match.title}</span> <span style="color:var(--cg-blue); font-size:16px;">+</span>`;
+
+				div.addEventListener("mouseenter", () =>
+					div.style.backgroundColor = "var(--cg-bg-hover)"
+				);
+				div.addEventListener("mouseleave", () =>
+					div.style.backgroundColor = "transparent"
+				);
+
+				div.addEventListener("click", async () => {
+					// Move item to folder logic
+					// Remove from old location
+					for (const f in state.folders) {
+						state.folders[f].items = state.folders[f].items.filter(
+							(itemId) => itemId !== match.id,
+						);
+					}
+					// Add to this folder
+					state.folders[folderName].items.push(match.id);
+					await saveState();
+
+					// Move DOM element
+					folderEl.querySelector(".cg-folder-content").appendChild(match.element);
+
+					// Remove from search results
+					div.remove();
+					if (resultsContainer.children.length === 0) {
+						resultsContainer.innerHTML = `<div style="padding:4px; color:var(--cg-text-muted); font-size:12px;">No more matches.</div>`;
+					}
+				});
+
+				resultsContainer.appendChild(div);
+			});
+		}
+
+		searchInput.addEventListener("input", updateSearchResults);
+		refreshBtn.addEventListener("click", updateSearchResults);
 
 		// 1. Toggle Collapse/Expand Event
 		folderEl
