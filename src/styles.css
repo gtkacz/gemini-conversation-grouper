@@ -50,7 +50,7 @@
 	font-size: 14px;
 	font-weight: 500;
 	color: var(--cg-blue);
-	background-color: var(--cg-bg);
+	background-color: transparent;
 	border: 1px solid var(--cg-border);
 	border-radius: 20px; /* More rounded to match Gemini */
 	cursor: pointer;
@@ -101,6 +101,11 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
+}
+
+/* Folder Content */
+.cg-folder-content {
+	padding: 12px 16px;
 }
 
 /* Icon Buttons (Expand/Delete) */
@@ -186,9 +191,8 @@
 }
 
 .cg-icon-only-btn:hover {
-	background-color: var(--cg-bg-hover);
+	background-color: var(--cg-bg-folder-header);
 	color: var(--cg-text);
-	border-color: var(--cg-border);
 }
 
 .cg-icon-only-btn svg {
